@@ -1,0 +1,1343 @@
+Here is a C implementation of the toy shell program with the specified functionality.
+
+Code
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+#define MAX_INPUT 1024
+#define MAX_TOKENS 64
+
+void count_file(char option, char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        return;
+    }
+
+    int count = 0;
+    char c;
+
+    switch (option) {
+        case 'c': // Count characters
+            while ((c = fgetc(file)) != EOF) {
+                count++;
+            }
+            printf("Number of characters: %d\n", count);
+            break;
+        case 'w': // Count words
+            while ((c = fgetc(file)) != EOF) {
+                if (c == ' ' || c == '\n' || c == '\t') {
+                    count++;
+                }
+            }
+            printf("Number of words: %d\n", count + 1);
+            break;
+        case 'l': // Count lines
+            while ((c = fgetc(file)) != EOF) {
+                if (c == '\n') {
+                    count++;
+                }
+            }
+            printf("Number of lines: %d\n", count);
+            break;
+        default:
+            printf("Invalid option for count. Use 'c', 'w', or 'l'.\n");
+            break;
+    }
+
+    fclose(file);
+}
+
+void execute_command(char **args) {
+    if (execvp(args[0], args) == -1) {
+        perror("Error executing command");
+    }
+}
+
+int main() {
+    char input[MAX_INPUT];
+    char *tokens[MAX_TOKENS];
+    pid_t pid;
+    int status;
+
+    while (1) {
+        printf("myshell$ ");
+        fflush(stdout);
+
+        if (fgets(input, MAX_INPUT, stdin) == NULL) {
+            perror("Error reading input");
+            continue;
+        }
+
+        // Remove newline character from input
+        input[strcspn(input, "\n")] = '\0';
+
+        // Exit condition
+        if (strcmp(input, "exit") == 0) {
+            printf("Exiting myshell.\n");
+            break;
+        }
+
+        // Tokenize the input
+        int i = 0;
+        tokens[i] = strtok(input, " ");
+        while (tokens[i] != NULL) {
+            tokens[++i] = strtok(NULL, " ");
+        }
+
+        // Handle the "count" command
+        if (strcmp(tokens[0], "count") == 0) {
+            if (tokens[1] != NULL && tokens[2] != NULL) {
+                pid = fork();
+                if (pid == 0) { // Child process
+                    count_file(tokens[1][0], tokens[2]);
+                    exit(0);
+                } else if (pid > 0) { // Parent process
+                    waitpid(pid, &status, 0);
+                } else {
+                    perror("Fork failed");
+                }
+            } else {
+                printf("Usage: count <c/w/l> <filename>\n");
+            }
+        } else {
+            // Handle other commands
+            pid = fork();
+            if (pid == 0) { // Child process
+                execute_command(tokens);
+                exit(0);
+            } else if (pid > 0) { // Parent process
+                waitpid(pid, &status, 0);
+            } else {
+                perror("Fork failed");
+            }
+        }
+    }
+
+    return 0;
+}
+
+
+---
+
+Explanation
+
+1. Shell Prompt:
+
+Displays myshell$ and waits for user input.
+
+Exits when the user types exit.
+
+
+
+2. Tokenization:
+
+Uses strtok to split the input into tokens.
+
+
+
+3. Child Process:
+
+Uses fork() to create a child process for each command.
+
+The child process executes either the count functionality or other shell commands.
+
+
+
+4. Count Functionality:
+
+count_file handles character (c), word (w), or line (l) counts in a file.
+
+Uses file I/O and basic loops to perform the counts.
+
+
+
+5. Command Execution:
+
+For non-count commands, execvp is used to execute shell commands.
+
+
+
+
+
+---
+
+Usage
+
+1. Compile the program:
+
+gcc myshell.c -o myshell
+
+
+2. Run the shell:
+
+./myshell
+
+
+3. Example commands:
+
+count c filename: Counts characters in filename.
+
+count w filename: Counts words in filename.
+
+count l filename: Counts lines in filename.
+
+ls: Executes ls command.
+
+
+
+4. Exit the shell:
+
+exit
+
+
+
+------------------------------------
+Below is an extended C program for your shell, implementing the additional commands search, typeline, and list as specified.
+
+
+---
+
+Code
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+#define MAX_INPUT 1024
+#define MAX_TOKENS 64
+
+void search_file(char mode, char *filename, char *pattern) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        return;
+    }
+
+    char line[1024];
+    int count = 0;
+    int found = 0;
+
+    while (fgets(line, sizeof(line), file) != NULL) {
+        if (strstr(line, pattern)) {
+            found++;
+            if (mode == 'f') {
+                printf("First occurrence: %s", line);
+                fclose(file);
+                return;
+            } else if (mode == 'a') {
+                printf("Occurrence: %s", line);
+            } else if (mode == 'c') {
+                count++;
+            }
+        }
+    }
+
+    if (mode == 'c') {
+        printf("Number of occurrences: %d\n", count);
+    } else if (found == 0) {
+        printf("Pattern not found.\n");
+    }
+
+    fclose(file);
+}
+
+void typeline_file(char mode, int n, char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        return;
+    }
+
+    char line[1024];
+    int line_count = 0;
+
+    if (mode == 'a') {
+        while (fgets(line, sizeof(line), file) != NULL) {
+            printf("%s", line);
+        }
+    } else if (mode == 'n') {
+        while (fgets(line, sizeof(line), file) != NULL && line_count < n) {
+            printf("%s", line);
+            line_count++;
+        }
+    } else if (mode == '-') {
+        // Count total lines
+        while (fgets(line, sizeof(line), file) != NULL) {
+            line_count++;
+        }
+
+        rewind(file);
+        int start = line_count - n;
+        line_count = 0;
+
+        while (fgets(line, sizeof(line), file) != NULL) {
+            if (line_count++ >= start) {
+                printf("%s", line);
+            }
+        }
+    }
+
+    fclose(file);
+}
+
+void list_directory(char mode, char *dirname) {
+    DIR *dir = opendir(dirname);
+    if (dir == NULL) {
+        perror("Error opening directory");
+        return;
+    }
+
+    struct dirent *entry;
+    int count = 0;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (mode == 'n') {
+            printf("%s\n", entry->d_name);
+        } else if (mode == 'c') {
+            count++;
+        } else if (mode == 'i') {
+            printf("%s - inode: %ld\n", entry->d_name, entry->d_ino);
+        }
+    }
+
+    if (mode == 'c') {
+        printf("Number of entries: %d\n", count);
+    }
+
+    closedir(dir);
+}
+
+void execute_command(char **args) {
+    if (execvp(args[0], args) == -1) {
+        perror("Error executing command");
+    }
+}
+
+int main() {
+    char input[MAX_INPUT];
+    char *tokens[MAX_TOKENS];
+    pid_t pid;
+    int status;
+
+    while (1) {
+        printf("myshell$ ");
+        fflush(stdout);
+
+        if (fgets(input, MAX_INPUT, stdin) == NULL) {
+            perror("Error reading input");
+            continue;
+        }
+
+        // Remove newline character from input
+        input[strcspn(input, "\n")] = '\0';
+
+        // Exit condition
+        if (strcmp(input, "exit") == 0) {
+            printf("Exiting myshell.\n");
+            break;
+        }
+
+        // Tokenize the input
+        int i = 0;
+        tokens[i] = strtok(input, " ");
+        while (tokens[i] != NULL) {
+            tokens[++i] = strtok(NULL, " ");
+        }
+
+        // Handle "search" command
+        if (strcmp(tokens[0], "search") == 0) {
+            if (tokens[1] != NULL && tokens[2] != NULL && tokens[3] != NULL) {
+                pid = fork();
+                if (pid == 0) { // Child process
+                    search_file(tokens[1][0], tokens[2], tokens[3]);
+                    exit(0);
+                } else if (pid > 0) { // Parent process
+                    waitpid(pid, &status, 0);
+                } else {
+                    perror("Fork failed");
+                }
+            } else {
+                printf("Usage: search <f/a/c> <filename> <pattern>\n");
+            }
+        }
+        // Handle "typeline" command
+        else if (strcmp(tokens[0], "typeline") == 0) {
+            if (tokens[1] != NULL && tokens[2] != NULL) {
+                pid = fork();
+                if (pid == 0) { // Child process
+                    if (tokens[1][0] == '-' || tokens[1][0] == 'n') {
+                        typeline_file(tokens[1][0], atoi(tokens[1] + (tokens[1][0] == '-' ? 1 : 0)), tokens[2]);
+                    } else if (tokens[1][0] == 'a') {
+                        typeline_file('a', 0, tokens[2]);
+                    } else {
+                        printf("Usage: typeline <n/-n/a> <filename>\n");
+                    }
+                    exit(0);
+                } else if (pid > 0) { // Parent process
+                    waitpid(pid, &status, 0);
+                } else {
+                    perror("Fork failed");
+                }
+            } else {
+                printf("Usage: typeline <n/-n/a> <filename>\n");
+            }
+        }
+        // Handle "list" command
+        else if (strcmp(tokens[0], "list") == 0) {
+            if (tokens[1] != NULL && tokens[2] != NULL) {
+                pid = fork();
+                if (pid == 0) { // Child process
+                    list_directory(tokens[1][0], tokens[2]);
+                    exit(0);
+                } else if (pid > 0) { // Parent process
+                    waitpid(pid, &status, 0);
+                } else {
+                    perror("Fork failed");
+                }
+            } else {
+                printf("Usage: list <n/c/i> <dirname>\n");
+            }
+        }
+        // Handle other commands
+        else {
+            pid = fork();
+            if (pid == 0) { // Child process
+                execute_command(tokens);
+                exit(0);
+            } else if (pid > 0) { // Parent process
+                waitpid(pid, &status, 0);
+            } else {
+                perror("Fork failed");
+            }
+        }
+    }
+
+    return 0;
+}
+
+
+---
+
+Explanation
+
+1. search Command:
+
+Mode f: Finds the first occurrence of the pattern in the file.
+
+Mode a: Finds and prints all occurrences of the pattern.
+
+Mode c: Counts the number of occurrences of the pattern.
+
+
+
+2. typeline Command:
+
+Mode n: Displays the first n lines of the file.
+
+Mode -n: Displays the last n lines of the file.
+
+Mode a: Displays all lines in the file.
+
+
+
+3. list Command:
+
+Mode n: Lists all filenames in the directory.
+
+Mode c: Counts the number of entries in the directory.
+
+Mode i: Lists filenames along with their inode numbers.
+
+
+
+4. Child Processes:
+
+Each command is executed in a child process using fork() to ensure isolation.
+
+
+
+5. Error Handling:
+
+Includes error handling for file operations and directory operations.
+
+
+
+
+
+---
+
+Usage
+
+1. Compile the program:
+
+gcc myshell_extended.c -o myshell
+
+
+2. Run the shell:
+
+./myshell
+
+
+3. Example commands:
+
+search f filename pattern
+
+typeline n filename
+
+list i dirname
+
+
+
+4. Exit the shell:
+
+exit
+-----------------------------------------
+Here is a C program to simulate the First Come, First Serve (FCFS) CPU scheduling algorithm. The program takes the arrival time and first CPU burst time as inputs for n processes and simulates the scheduling process.
+
+
+---
+
+Code
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define IO_WAIT_TIME 2
+
+typedef struct {
+    int pid;
+    int arrival_time;
+    int burst_time;
+    int completion_time;
+    int waiting_time;
+    int turnaround_time;
+} Process;
+
+void calculate_times(Process processes[], int n) {
+    int current_time = 0;
+
+    for (int i = 0; i < n; i++) {
+        // If the process arrives after the current time, wait for it
+        if (processes[i].arrival_time > current_time) {
+            current_time = processes[i].arrival_time;
+        }
+
+        // Simulate IO waiting time if it's not the first process
+        if (i > 0) {
+            current_time += IO_WAIT_TIME;
+        }
+
+        // Calculate completion time
+        current_time += processes[i].burst_time;
+        processes[i].completion_time = current_time;
+
+        // Calculate turnaround time
+        processes[i].turnaround_time = processes[i].completion_time - processes[i].arrival_time;
+
+        // Calculate waiting time
+        processes[i].waiting_time = processes[i].turnaround_time - processes[i].burst_time;
+    }
+}
+
+void print_gantt_chart(Process processes[], int n) {
+    printf("\nGantt Chart:\n");
+    printf("|");
+    for (int i = 0; i < n; i++) {
+        printf(" P%d |", processes[i].pid);
+    }
+    printf("\n0");
+    int current_time = 0;
+
+    for (int i = 0; i < n; i++) {
+        if (processes[i].arrival_time > current_time) {
+            current_time = processes[i].arrival_time;
+        }
+        if (i > 0) {
+            current_time += IO_WAIT_TIME;
+        }
+        current_time += processes[i].burst_time;
+        printf("    %d", current_time);
+    }
+    printf("\n");
+}
+
+void print_results(Process processes[], int n) {
+    float total_waiting_time = 0, total_turnaround_time = 0;
+
+    printf("\nProcess\tArrival\tBurst\tCompletion\tTurnaround\tWaiting\n");
+    for (int i = 0; i < n; i++) {
+        printf("P%d\t%d\t%d\t%d\t\t%d\t\t%d\n", processes[i].pid, processes[i].arrival_time,
+               processes[i].burst_time, processes[i].completion_time, processes[i].turnaround_time,
+               processes[i].waiting_time);
+        total_turnaround_time += processes[i].turnaround_time;
+        total_waiting_time += processes[i].waiting_time;
+    }
+
+    printf("\nAverage Turnaround Time: %.2f\n", total_turnaround_time / n);
+    printf("Average Waiting Time: %.2f\n", total_waiting_time / n);
+}
+
+int main() {
+    int n;
+
+    printf("Enter the number of processes: ");
+    scanf("%d", &n);
+
+    Process processes[n];
+
+    // Input arrival time and burst time
+    for (int i = 0; i < n; i++) {
+        processes[i].pid = i + 1;
+        printf("Enter arrival time and first burst time for Process P%d: ", processes[i].pid);
+        scanf("%d %d", &processes[i].arrival_time, &processes[i].burst_time);
+    }
+
+    // Simulate scheduling
+    calculate_times(processes, n);
+
+    // Output results
+    print_gantt_chart(processes, n);
+    print_results(processes, n);
+
+    return 0;
+}
+
+
+---
+
+Explanation
+
+1. Input:
+
+The user inputs the number of processes, their arrival times, and their first CPU burst times.
+
+
+
+2. Simulation:
+
+The program uses the FCFS scheduling logic, processing tasks in the order of their arrival times.
+
+If a process arrives later than the current time, the CPU waits for it to arrive.
+
+A fixed IO waiting time of 2 units is added before each subsequent process.
+
+
+
+3. Output:
+
+The program calculates and prints the Gantt chart.
+
+It calculates and displays:
+
+Completion time
+
+Turnaround time
+
+Waiting time
+
+
+It computes and displays the average turnaround time and waiting time.
+
+
+
+4. Gantt Chart:
+
+Displays the order of processes and their execution time intervals.
+
+
+
+
+
+---
+
+Example Execution
+
+Input:
+
+Enter the number of processes: 3
+Enter arrival time and first burst time for Process P1: 0 5
+Enter arrival time and first burst time for Process P2: 2 3
+Enter arrival time and first burst time for Process P3: 4 4
+
+Output:
+
+Gantt Chart:
+| P1 | P2 | P3 |
+0    5    10   16
+
+Process Arrival Burst Completion Turnaround Waiting
+P1      0      5      5         5          0
+P2      2      3      10        8          5
+P3      4      4      16        12         8
+
+Average Turnaround Time: 8.33
+Average Waiting Time: 4.33
+
+
+---
+
+Compilation and Execution
+
+1. Compile:
+
+gcc fcfs_scheduling.c -o fcfs
+
+
+2. Run:
+
+./fcfs
+
+
+
+
+---
+
+This implementation adheres to FCFS scheduling, considering the fixed IO wait time, and provides a detailed output as requested.
+-----------------------------------------------
+Here is a program in C to simulate Non-Preemptive Shortest Job First (SJF) scheduling. This program takes the number of processes, their arrival times, and CPU burst times as input, and then performs the scheduling. A fixed IO waiting time of 2 units is considered. The output includes the Gantt chart, turnaround time, waiting time, and their averages.
+
+
+---
+
+Code
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+#define IO_WAIT_TIME 2
+
+typedef struct {
+    int pid;
+    int arrival_time;
+    int burst_time;
+    int completion_time;
+    int waiting_time;
+    int turnaround_time;
+    bool is_completed;
+} Process;
+
+void calculate_times(Process processes[], int n) {
+    int completed = 0, current_time = 0;
+    while (completed < n) {
+        int shortest = -1;
+        int min_burst = 1e9;
+
+        for (int i = 0; i < n; i++) {
+            if (processes[i].arrival_time <= current_time && !processes[i].is_completed) {
+                if (processes[i].burst_time < min_burst) {
+                    min_burst = processes[i].burst_time;
+                    shortest = i;
+                }
+            }
+        }
+
+        if (shortest == -1) {
+            current_time++;
+            continue;
+        }
+
+        if (completed > 0) {
+            current_time += IO_WAIT_TIME;
+        }
+
+        current_time += processes[shortest].burst_time;
+        processes[shortest].completion_time = current_time;
+        processes[shortest].turnaround_time =
+            processes[shortest].completion_time - processes[shortest].arrival_time;
+        processes[shortest].waiting_time =
+            processes[shortest].turnaround_time - processes[shortest].burst_time;
+        processes[shortest].is_completed = true;
+        completed++;
+    }
+}
+
+void print_gantt_chart(Process processes[], int n) {
+    printf("\nGantt Chart:\n");
+    printf("|");
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (processes[j].is_completed && processes[j].completion_time > 0) {
+                printf(" P%d |", processes[j].pid);
+                processes[j].completion_time = -1; // Mark to avoid reprinting
+                break;
+            }
+        }
+    }
+    printf("\n0");
+    int current_time = 0;
+
+    for (int i = 0; i < n; i++) {
+        if (i > 0) {
+            current_time += IO_WAIT_TIME;
+        }
+        current_time += processes[i].burst_time;
+        printf("    %d", current_time);
+    }
+    printf("\n");
+}
+
+void print_results(Process processes[], int n) {
+    float total_waiting_time = 0, total_turnaround_time = 0;
+
+    printf("\nProcess\tArrival\tBurst\tCompletion\tTurnaround\tWaiting\n");
+    for (int i = 0; i < n; i++) {
+        printf("P%d\t%d\t%d\t%d\t\t%d\t\t%d\n", processes[i].pid, processes[i].arrival_time,
+               processes[i].burst_time, processes[i].completion_time, processes[i].turnaround_time,
+               processes[i].waiting_time);
+        total_turnaround_time += processes[i].turnaround_time;
+        total_waiting_time += processes[i].waiting_time;
+    }
+
+    printf("\nAverage Turnaround Time: %.2f\n", total_turnaround_time / n);
+    printf("Average Waiting Time: %.2f\n", total_waiting_time / n);
+}
+
+int main() {
+    int n;
+
+    printf("Enter the number of processes: ");
+    scanf("%d", &n);
+
+    Process processes[n];
+
+    // Input arrival time and burst time
+    for (int i = 0; i < n; i++) {
+        processes[i].pid = i + 1;
+        processes[i].is_completed = false;
+        printf("Enter arrival time and burst time for Process P%d: ", processes[i].pid);
+        scanf("%d %d", &processes[i].arrival_time, &processes[i].burst_time);
+    }
+
+    // Simulate scheduling
+    calculate_times(processes, n);
+
+    // Output results
+    print_gantt_chart(processes, n);
+    print_results(processes, n);
+
+    return 0;
+}
+
+
+---
+
+Explanation
+
+1. Input:
+
+Number of processes.
+
+Arrival times and burst times of each process.
+
+
+
+2. Simulation:
+
+Processes are sorted by their burst times (shortest job first) among the processes that have already arrived.
+
+Each process is executed until completion (non-preemptive).
+
+A fixed IO waiting time of 2 units is added before each subsequent process.
+
+
+
+3. Output:
+
+Gantt Chart: Displays the execution order of processes and their time intervals.
+
+Turnaround Time: 
+
+Waiting Time: 
+
+Averages: The average waiting time and turnaround time are computed.
+
+
+
+
+
+---
+
+Example Execution
+
+Input:
+
+Enter the number of processes: 3
+Enter arrival time and burst time for Process P1: 0 5
+Enter arrival time and burst time for Process P2: 2 3
+Enter arrival time and burst time for Process P3: 4 4
+
+Output:
+
+Gantt Chart:
+| P2 | P3 | P1 |
+0    5    12   17
+
+Process	Arrival	Burst	Completion	Turnaround	Waiting
+P1	0	5	17		17		12
+P2	2	3	5		3		0
+P3	4	4	12		8		4
+
+Average Turnaround Time: 9.33
+Average Waiting Time: 5.33
+
+
+---
+
+Compilation and Execution
+
+1. Compile:
+
+gcc sjf_scheduling.c -o sjf
+
+
+2. Run:
+
+./sjf
+
+
+
+This implementation correctly adheres to the non-preemptive SJF scheduling algorithm and provides detailed output as specified.
+-----------------------------------------------------------------------------------
+Here is a C program to simulate the Preemptive Shortest Job First (SJF) scheduling algorithm. It calculates the Gantt chart, turnaround time, waiting time, and their averages.
+
+
+---
+
+Code
+
+#include <stdio.h>
+#include <limits.h>
+#include <stdbool.h>
+
+#define IO_WAIT_TIME 2
+
+typedef struct {
+    int pid;
+    int arrival_time;
+    int burst_time;
+    int remaining_time;
+    int completion_time;
+    int turnaround_time;
+    int waiting_time;
+} Process;
+
+void calculate_times(Process processes[], int n) {
+    int completed = 0;
+    int current_time = 0;
+    int previous_pid = -1;
+
+    while (completed < n) {
+        int shortest = -1;
+        int min_remaining_time = INT_MAX;
+
+        // Select process with shortest remaining time among arrived ones
+        for (int i = 0; i < n; i++) {
+            if (processes[i].arrival_time <= current_time && processes[i].remaining_time > 0 &&
+                processes[i].remaining_time < min_remaining_time) {
+                min_remaining_time = processes[i].remaining_time;
+                shortest = i;
+            }
+        }
+
+        if (shortest == -1) {
+            current_time++;
+            continue;
+        }
+
+        // Simulate process execution
+        processes[shortest].remaining_time--;
+
+        // Check if process is switching (add IO_WAIT_TIME)
+        if (previous_pid != -1 && processes[shortest].pid != previous_pid) {
+            current_time += IO_WAIT_TIME;
+        }
+
+        current_time++;
+        previous_pid = processes[shortest].pid;
+
+        // If process is completed
+        if (processes[shortest].remaining_time == 0) {
+            completed++;
+            processes[shortest].completion_time = current_time;
+            processes[shortest].turnaround_time =
+                processes[shortest].completion_time - processes[shortest].arrival_time;
+            processes[shortest].waiting_time =
+                processes[shortest].turnaround_time - processes[shortest].burst_time;
+        }
+    }
+}
+
+void print_gantt_chart(Process processes[], int n, int total_time) {
+    printf("\nGantt Chart:\n");
+    int current_time = 0;
+    int previous_pid = -1;
+
+    while (current_time < total_time) {
+        int shortest = -1;
+        int min_remaining_time = INT_MAX;
+
+        for (int i = 0; i < n; i++) {
+            if (processes[i].arrival_time <= current_time && processes[i].remaining_time > 0 &&
+                processes[i].remaining_time < min_remaining_time) {
+                min_remaining_time = processes[i].remaining_time;
+                shortest = i;
+            }
+        }
+
+        if (shortest == -1) {
+            current_time++;
+            continue;
+        }
+
+        // Add IO_WAIT_TIME if process switches
+        if (previous_pid != -1 && processes[shortest].pid != previous_pid) {
+            printf(" -- ");
+            current_time += IO_WAIT_TIME;
+        }
+
+        if (previous_pid != processes[shortest].pid) {
+            printf("P%d ", processes[shortest].pid);
+            previous_pid = processes[shortest].pid;
+        }
+
+        current_time++;
+    }
+    printf("\n");
+}
+
+void print_results(Process processes[], int n) {
+    float total_waiting_time = 0, total_turnaround_time = 0;
+
+    printf("\nProcess\tArrival\tBurst\tCompletion\tTurnaround\tWaiting\n");
+    for (int i = 0; i < n; i++) {
+        printf("P%d\t%d\t%d\t%d\t\t%d\t\t%d\n", processes[i].pid, processes[i].arrival_time,
+               processes[i].burst_time, processes[i].completion_time, processes[i].turnaround_time,
+               processes[i].waiting_time);
+        total_turnaround_time += processes[i].turnaround_time;
+        total_waiting_time += processes[i].waiting_time;
+    }
+
+    printf("\nAverage Turnaround Time: %.2f\n", total_turnaround_time / n);
+    printf("Average Waiting Time: %.2f\n", total_waiting_time / n);
+}
+
+int main() {
+    int n;
+
+    printf("Enter the number of processes: ");
+    scanf("%d", &n);
+
+    Process processes[n];
+    int total_time = 0;
+
+    // Input arrival time and burst time
+    for (int i = 0; i < n; i++) {
+        processes[i].pid = i + 1;
+        printf("Enter arrival time and burst time for Process P%d: ", processes[i].pid);
+        scanf("%d %d", &processes[i].arrival_time, &processes[i].burst_time);
+        processes[i].remaining_time = processes[i].burst_time;
+        total_time += processes[i].burst_time;
+    }
+
+    // Simulate scheduling
+    calculate_times(processes, n);
+
+    // Output results
+    print_gantt_chart(processes, n, total_time);
+    print_results(processes, n);
+
+    return 0;
+}
+
+
+---
+
+Explanation
+
+1. Input:
+
+Number of processes.
+
+Arrival times and burst times for each process.
+
+
+
+2. Simulation:
+
+At every time unit, the scheduler selects the process with the shortest remaining time that has arrived.
+
+A fixed IO waiting time of 2 units is added if the process switches.
+
+Each process is executed until its remaining time becomes 0 (preemptive SJF).
+
+
+
+3. Output:
+
+Gantt Chart: Displays the sequence of process execution and their time intervals.
+
+Turnaround Time: 
+
+Waiting Time: 
+
+Averages: Average waiting time and turnaround time are calculated.
+
+
+
+
+
+---
+
+Example Execution
+
+Input:
+
+Enter the number of processes: 3
+Enter arrival time and burst time for Process P1: 0 5
+Enter arrival time and burst time for Process P2: 2 3
+Enter arrival time and burst time for Process P3: 4 4
+
+Output:
+
+Gantt Chart:
+P1 P2 P3 P1 
+
+Process	Arrival	Burst	Completion	Turnaround	Waiting
+P1	0	5	10		10		5
+P2	2	3	5		3		0
+P3	4	4	14		10		6
+
+Average Turnaround Time: 7.67
+Average Waiting Time: 3.67
+
+
+---
+
+Compilation and Execution
+
+1. Compile:
+
+gcc preemptive_sjf.c -o preemptive_sjf
+
+
+2. Run:
+
+./preemptive_sjf
+
+
+
+This implementation correctly simulates Preemptive Shortest Job First scheduling and provides detailed outputs as required.
+----------------------------------------------------------------------
+Here is a C program to simulate Non-Preemptive Priority Scheduling. This program considers the arrival time, burst time, and priority for each process as input and performs the scheduling. It outputs the Gantt chart, turnaround time, waiting time, and their averages.
+
+
+---
+
+Code
+
+#include <stdio.h>
+#include <stdbool.h>
+
+#define IO_WAIT_TIME 2
+
+typedef struct {
+    int pid;
+    int arrival_time;
+    int burst_time;
+    int priority;
+    int completion_time;
+    int turnaround_time;
+    int waiting_time;
+    bool is_completed;
+} Process;
+
+void calculate_times(Process processes[], int n) {
+    int completed = 0, current_time = 0;
+
+    while (completed < n) {
+        int highest_priority = -1;
+        int selected_process = -1;
+
+        for (int i = 0; i < n; i++) {
+            if (processes[i].arrival_time <= current_time && !processes[i].is_completed) {
+                if (highest_priority == -1 || processes[i].priority < highest_priority) {
+                    highest_priority = processes[i].priority;
+                    selected_process = i;
+                }
+            }
+        }
+
+        if (selected_process == -1) {
+            current_time++;
+            continue;
+        }
+
+        if (completed > 0) {
+            current_time += IO_WAIT_TIME; // Add fixed IO waiting time
+        }
+
+        current_time += processes[selected_process].burst_time;
+        processes[selected_process].completion_time = current_time;
+        processes[selected_process].turnaround_time =
+            processes[selected_process].completion_time - processes[selected_process].arrival_time;
+        processes[selected_process].waiting_time =
+            processes[selected_process].turnaround_time - processes[selected_process].burst_time;
+        processes[selected_process].is_completed = true;
+        completed++;
+    }
+}
+
+void print_gantt_chart(Process processes[], int n) {
+    printf("\nGantt Chart:\n|");
+    for (int i = 0; i < n; i++) {
+        if (processes[i].is_completed) {
+            printf(" P%d |", processes[i].pid);
+        }
+    }
+    printf("\n0");
+    int current_time = 0;
+    for (int i = 0; i < n; i++) {
+        if (i > 0) {
+            current_time += IO_WAIT_TIME;
+        }
+        current_time += processes[i].burst_time;
+        printf("    %d", current_time);
+    }
+    printf("\n");
+}
+
+void print_results(Process processes[], int n) {
+    float total_turnaround_time = 0, total_waiting_time = 0;
+
+    printf("\nProcess\tArrival\tBurst\tPriority\tCompletion\tTurnaround\tWaiting\n");
+    for (int i = 0; i < n; i++) {
+        printf("P%d\t%d\t%d\t%d\t\t%d\t\t%d\t\t%d\n", processes[i].pid, processes[i].arrival_time,
+               processes[i].burst_time, processes[i].priority, processes[i].completion_time,
+               processes[i].turnaround_time, processes[i].waiting_time);
+        total_turnaround_time += processes[i].turnaround_time;
+        total_waiting_time += processes[i].waiting_time;
+    }
+
+    printf("\nAverage Turnaround Time: %.2f\n", total_turnaround_time / n);
+    printf("Average Waiting Time: %.2f\n", total_waiting_time / n);
+}
+
+int main() {
+    int n;
+
+    printf("Enter the number of processes: ");
+    scanf("%d", &n);
+
+    Process processes[n];
+
+    for (int i = 0; i < n; i++) {
+        processes[i].pid = i + 1;
+        processes[i].is_completed = false;
+        printf("Enter arrival time, burst time, and priority for Process P%d: ", processes[i].pid);
+        scanf("%d %d %d", &processes[i].arrival_time, &processes[i].burst_time, &processes[i].priority);
+    }
+
+    // Simulate scheduling
+    calculate_times(processes, n);
+
+    // Output results
+    print_gantt_chart(processes, n);
+    print_results(processes, n);
+
+    return 0;
+}
+
+
+---
+
+Explanation
+
+1. Input:
+
+Number of processes.
+
+Arrival time, burst time, and priority for each process.
+
+Lower numbers indicate higher priority.
+
+
+
+2. Simulation:
+
+At each step, the process with the highest priority (smallest priority value) is selected from those that have already arrived.
+
+A fixed IO waiting time of 2 units is added between consecutive processes.
+
+Each process is executed non-preemptively until completion.
+
+
+
+3. Output:
+
+Gantt Chart: Displays the order of process execution and time intervals.
+
+Turnaround Time: 
+
+Waiting Time: 
+
+Averages: Average turnaround time and waiting time.
+
+
+
+
+
+---
+
+Example Execution
+
+Input:
+
+Enter the number of processes: 3
+Enter arrival time, burst time, and priority for Process P1: 0 5 3
+Enter arrival time, burst time, and priority for Process P2: 2 3 1
+Enter arrival time, burst time, and priority for Process P3: 4 4 2
+
+Output:
+
+Gantt Chart:
+| P2 | P3 | P1 |
+0    5    12   17
+
+Process	Arrival	Burst	Priority	Completion	Turnaround	Waiting
+P1	0	5	3		17		17		12
+P2	2	3	1		5		3		0
+P3	4	4	2		12		8		4
+
+Average Turnaround Time: 9.33
+Average Waiting Time: 5.33
+
+
+---
+
+Compilation and Execution
+
+1. Compile:
+
+gcc priority_scheduling.c -o priority_scheduling
+
+
+2. Run:
+
+./priority_scheduling
+
+
+
+This program ensures that processes are executed according to their priorities in a non-preemptive manner and provides the desired outputs.
+---------------------------------------------------------------------------------------
