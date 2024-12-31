@@ -1,0 +1,77 @@
+<?php
+// Function to send an email with attachment
+function sendEmail($to, $from, $subject, $message, $file) {
+    $boundary = md5("random");  // Unique boundary for separating the message parts
+
+    // Headers
+    $headers = "From: $from\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
+
+    // Email Body
+    $body = "--$boundary\r\n";
+    $body .= "Content-Type: text/plain; charset=ISO-8859-1\r\n";
+    $body .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
+    $body .= $message . "\r\n";
+
+    // Attachment
+    if (!empty($file['tmp_name'])) {
+        $fileContent = chunk_split(base64_encode(file_get_contents($file['tmp_name'])));
+        $fileName = $file['name'];
+
+        $body .= "--$boundary\r\n";
+        $body .= "Content-Type: application/octet-stream; name=\"$fileName\"\r\n";
+        $body .= "Content-Transfer-Encoding: base64\r\n";
+        $body .= "Content-Disposition: attachment; filename=\"$fileName\"\r\n\r\n";
+        $body .= $fileContent . "\r\n";
+    }
+
+    $body .= "--$boundary--";
+
+    // Send the email
+    return mail($to, $subject, $body, $headers);
+}
+
+// Handling the login form submission
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Example login credentials
+    $valid_username = "admin";
+    $valid_password = "password123";
+
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+
+    // Login validation
+    if ($username == $valid_username && $password == $valid_password) {
+        // Login successful, send email
+        $to = 'recipient@example.com'; // List multiple recipients separated by commas
+        $from = 'youremail@example.com';
+        $subject = 'Test Email Subject';
+        $message = 'This is the body of the email.';
+        
+        // Handle file attachment if present
+        $file = isset($_FILES['attachment']) ? $_FILES['attachment'] : null;
+
+        // Send the email with attachment
+        if (sendEmail($to, $from, $subject, $message, $file)) {
+            echo "Login successful. Email sent!";
+        } else {
+            echo "Login successful, but email sending failed.";
+        }
+    } else {
+        echo "Invalid username or password!";
+    }
+} else {
+    // Display the login form
+    echo '<h2>Login Form</h2>';
+    echo '<form action="" method="POST" enctype="multipart/form-data">';
+    echo '    <label for="username">Username:</label>';
+    echo '    <input type="text" name="username" id="username" required><br><br>';
+    echo '    <label for="password">Password:</label>';
+    echo '    <input type="password" name="password" id="password" required><br><br>';
+    echo '    <label for="attachment">Choose file to attach:</label>';
+    echo '    <input type="file" name="attachment" id="attachment"><br><br>';
+    echo '    <input type="submit" value="Login">';
+    echo '</form>';
+}
+?>

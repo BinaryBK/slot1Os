@@ -1,0 +1,104 @@
+<?php
+session_start(); // Start the session
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $to = $_POST['to'];
+    $subject = $_POST['subject'];
+    $message = $_POST['message'];
+    $file = $_FILES['attachment'];
+
+    // Validate email
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['message'] = "Invalid email format";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit;
+    }
+
+    // Check if file was uploaded without errors
+    if (isset($file) && $file['error'] == 0) {
+        $fileName = $file['name'];
+        $fileTmpPath = $file['tmp_name'];
+        $fileType = $file['type'];
+        $fileSize = $file['size'];
+
+        // Specify the directory where the file will be saved
+        $uploadFileDir = './uploaded_files/';
+        $dest_path = $uploadFileDir . $fileName;
+
+        // Create the directory if it doesn't exist
+        if (!is_dir($uploadFileDir)) {
+            mkdir($uploadFileDir, 0755, true);
+        }
+
+        // Move the file to the specified directory
+        if (move_uploaded_file($fileTmpPath, $dest_path)) {
+            // Prepare email headers
+            $boundary = md5(time());
+            $headers = "From: sender@example.com\r\n";
+            $headers .= "MIME-Version: 1.0\r\n";
+            $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
+
+            // Prepare email body
+            $body = "--$boundary\r\n";
+            $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            $body .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
+            $body .= $message . "\r\n";
+            $body .= "--$boundary\r\n";
+            $body .= "Content-Type: $fileType; name=\"$fileName\"\r\n";
+            $body .= "Content-Disposition: attachment; filename=\"$fileName\"\r\n";
+            $body .= "Content-Transfer-Encoding: binary\r\n\r\n";
+            $body .= file_get_contents($dest_path) . "\r\n";
+            $body .= "--$boundary--";
+
+            // Send email
+            if (mail($to, $subject, $body, $headers)) {
+                $_SESSION['message'] = "Email sent successfully!";
+            } else {
+                $_SESSION['message'] = "Email sending failed.";
+            }
+        } else {
+            $_SESSION['message'] = "There was an error moving the uploaded file.";
+        }
+    } else {
+        $_SESSION['message'] = "No file uploaded or there was an upload error.";
+    }
+
+    // Redirect to the same page to avoid form resubmission
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+// Check for message in session
+$message = isset($_SESSION['message']) ? $_SESSION['message'] : '';
+unset($_SESSION['message']); // Clear the message after displaying it
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Form</title>
+</head>
+<body>
+    <h1>Compose Email</h1>
+    <?php if ($message): ?>
+        <p><?php echo htmlspecialchars($message); ?></p>
+    <?php endif; ?>
+    <form action="" method="post" enctype="multipart/form-data">
+        <label for="to">To:</label><br>
+        <input type="email" id="to" name="to" required><br><br>
+
+        <label for="subject">Subject:</label><br>
+        <input type="text" id="subject" name="subject" required><br><br>
+
+        <label for="message">Message:</label><br>
+        <textarea id="message" name="message" rows="5" required></textarea><br><br>
+
+        <label for="attachment">Attachment:</label><br>
+        <input type="file" id="attachment" name="attachment" required><br><br>
+
+        <input type="submit" value="Send Email">
+    </form>
+</body>
+</html>
