@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AJAX Read File Example</title>
+    <script>
+        function printFileContents() {
+            // Create a new XMLHttpRequest object
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'read_file.php', true);
+
+            // Set up a function to handle the response
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    // Display the contents of the file in the div
+                    document.getElementById('fileContents').innerText = xhr.responseText;
+                } else {
+                    console.error('Error loading file: ' + xhr.status);
+                }
+            };
+
+            // Send the request
+            xhr.send();
+        }
+    </script>
+</head>
+<body>
+    <h1>Read Text File with AJAX</h1>
+    <button onclick="printFileContents()">Print</button>
+    <div id="fileContents" style="margin-top: 20px; border: 1px solid #ccc; padding: 10px;"></div>
+</body>
+</html>

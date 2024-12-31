@@ -1,0 +1,90 @@
+CREATE TABLE ACTOR (
+    ano INT PRIMARY KEY AUTO_INCREMENT,
+    aname VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE MOVIE (
+    mno INT PRIMARY KEY AUTO_INCREMENT,
+    mname VARCHAR(100) NOT NULL,
+    release_yr INT,
+    ano INT,
+    FOREIGN KEY (ano) REFERENCES ACTOR(ano)
+);
+
+
+
+
+
+
+
+
+<html>
+<head>
+    <script>
+        function showHint(str) {
+            if (str === "") {
+                document.getElementById("mydiv").innerHTML = "";
+                return;
+            }
+            var XHRobj;
+            if (window.XMLHttpRequest) {
+                XHRobj = new XMLHttpRequest();
+            } else {
+                XHRobj = new ActiveXObject("Microsoft.XMLHTTP");
+            }
+            XHRobj.onreadystatechange = function() {
+                if (XHRobj.readyState === 4 && XHRobj.status === 200) {
+                    document.getElementById("mydiv").innerHTML = XHRobj.responseText;
+                }
+            }
+            XHRobj.open("GET", "mactor.php?q=" + str, true);
+            XHRobj.send();
+        }
+    </script>
+</head>
+<body>
+    <p><b>Actor Details:</b></p>
+    <form>
+        <SELECT name="aname" onchange="showHint(this.value)">
+            <option value="">Select Actor Name</option>
+            <option value="Ramcharan">Ramcharan</option>
+            <option value="Allu">Allu</option>
+            <!-- Add more actors as needed -->
+        </SELECT>
+    </form>
+    <div id="mydiv"><b> Actor info......</b></div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<?php
+$database = "test"; // database name
+$q = $_GET["q"];
+$con = @mysqli_connect("localhost", "root", "", "test");
+
+if (!$con) {
+    die('Could not connect: ' . mysqli_error($con));
+}
+
+$result = @mysqli_query($con, "SELECT m.mno, m.mname, m.release_yr FROM MOVIE AS m, ACTOR AS a WHERE m.ano = a.ano AND a.aname = '$q'");
+
+echo "<table border='1'>";
+echo "<tr><th>Movie No</th><th>Movie Name</th><th>Release Year</th></tr>";
+while ($row = @mysqli_fetch_array($result)) {
+    echo "<tr><td>" . $row['mno'] . "</td><td>" . $row['mname'] . "</td><td>" . $row['release_yr'] . "</td></tr>";
+}
+echo "</table>";
+
+@mysqli_close($con);
+?>

@@ -1,0 +1,123 @@
+//sql
+
+CREATE TABLE EMP (
+    eno INT PRIMARY KEY,
+    ename VARCHAR(100),
+    designation VARCHAR(100),
+    salary DECIMAL(10, 2)
+);
+
+
+//sample data
+
+INSERT INTO EMP (eno, ename, designation, salary)
+VALUES 
+(1, 'John Doe', 'Manager', 55000.00),
+(2, 'Jane Smith', 'Developer', 45000.00),
+(3, 'Alice Brown', 'Designer', 40000.00);
+
+
+
+//html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Details</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+
+    <h2>Search Employee by Name</h2>
+    
+    <label for="employeeName">Enter Employee Name:</label>
+    <input type="text" id="employeeName" name="employeeName">
+    <button onclick="getEmployeeDetails()">Search</button>
+    
+    <div id="employeeDetails"></div>
+
+    <script>
+        function getEmployeeDetails() {
+            var name = document.getElementById("employeeName").value;
+
+            // Check if name is not empty
+            if(name === "") {
+                alert("Please enter an employee name.");
+                return;
+            }
+
+            $.ajax({
+                url: "get_employee_details.php", // PHP file to handle the request
+                type: "GET",
+                data: { ename: name }, // Send the employee name
+                success: function(response) {
+                    document.getElementById("employeeDetails").innerHTML = response;
+                },
+                error: function() {
+                    alert("Error fetching employee details.");
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>
+
+
+
+//php
+
+
+<?php
+// Database connection
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "your_database_name"; // Replace with your actual database name
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+if (isset($_GET['ename'])) {
+    $ename = $_GET['ename'];
+
+    // Query to select employee details based on name
+    $sql = "SELECT eno, ename, designation, salary FROM EMP WHERE ename LIKE ?";
+    $stmt = $conn->prepare($sql);
+    $like_name = "%" . $ename . "%";
+    $stmt->bind_param("s", $like_name);
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            echo "<h3>Employee Details:</h3>";
+            echo "<p>Employee No: " . $row['eno'] . "</p>";
+            echo "<p>Name: " . $row['ename'] . "</p>";
+            echo "<p>Designation: " . $row['designation'] . "</p>";
+            echo "<p>Salary: $" . $row['salary'] . "</p>";
+        }
+    } else {
+        echo "No employee found with that name.";
+    }
+    $stmt->close();
+}
+
+$conn->close();
+?>
+
+
+
+
+
+How It Works:
+HTML + JavaScript (Ajax): The user inputs an employee name, and when the "Search" button is clicked, the getEmployeeDetails() function makes an Ajax request to the PHP script (get_employee_details.php), sending the employee name.
+PHP Script: The PHP script queries the EMP table based on the employee name and returns the employee's details if found. The response is sent back to the frontend, where it is displayed in the #employeeDetails div.
+Make sure to replace the your_database_name with the actual name of your database.
