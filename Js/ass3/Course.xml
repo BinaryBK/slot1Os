@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Course>
+    <ComputerScience>
+        <Student name="Alice Johnson"/>
+        <Class name="TYBSc"/>
+        <percentage>85.5</percentage>
+        <Student name="Bob Smith"/>
+        <Class name="TYBSc"/>
+        <percentage>78.0</percentage>
+        <Student name="Charlie Brown"/>
+        <Class name="TYBSc"/>
+        <percentage>92.0</percentage>
+        <Student name="Diana Prince"/>
+        <Class name="TYBSc"/>
+        <percentage>88.5</percentage>
+        <Student name="Ethan Hunt"/>
+        <Class name="TYBSc"/>
+        <percentage>90.0</percentage>
+    </ComputerScience>
+</Course>

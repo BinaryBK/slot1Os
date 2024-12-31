@@ -1,0 +1,36 @@
+/* styles.css */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #000;
+}
+
+/* Student Name Column */
+th:nth-child(1), td:nth-child(1) {
+    color: blue;
+    font-family: 'Bodoni MT', serif;
+    font-style: italic;
+    font-size: 16pt;
+}
+
+/* Class Name Column */
+th:nth-child(2), td:nth-child(2) {
+    color: green;
+    font-family: 'Arial', Helvetica, sans-serif;
+    font-style: normal;
+    font-size: 12pt;
+}
+
+/* Percentage Column */
+th:nth-child(3), td:nth-child(3) {
+    color: red;
+    font-family: 'Impact', Charcoal, sans-serif;
+    font-style: oblique;
+    font-size: 14pt;
+}

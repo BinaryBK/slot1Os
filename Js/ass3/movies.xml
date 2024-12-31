@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MayanagariCDStore>
+    <Classical>
+        <Movie>
+            <MovieName>Veer Zaara</MovieName>
+            <ReleaseYear>2004</ReleaseYear>
+        </Movie>
+        <Movie>
+            <MovieName>Sholay</MovieName>
+            <ReleaseYear>1975</ReleaseYear>
+        </Movie>
+    </Classical>
+
+    <Action>
+        <Movie>
+            <MovieName>Baahubali: The Beginning</MovieName>
+            <ReleaseYear>2015</ReleaseYear>
+        </Movie>
+        <Movie>
+            <MovieName>War</MovieName>
+            <ReleaseYear>2019</ReleaseYear>
+        </Movie>
+    </Action>
+
+    <Horror>
+        <Movie>
+            <MovieName>The Conjuring</MovieName>
+            <ReleaseYear>2013</ReleaseYear>
+        </Movie>
+        <Movie>
+            <MovieName>It</MovieName>
+            <ReleaseYear>2017</ReleaseYear>
+        </Movie>
+    </Horror>
+</MayanagariCDStore>
