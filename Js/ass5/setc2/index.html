@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Details</title>
+    <script>
+        function loadBookDetails() {
+            const selectedBook = document.getElementById("bookSelect").value;
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", "books.xml", true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    const xmlDoc = xhr.responseXML;
+                    const books = xmlDoc.getElementsByTagName("book");
+                    let bookDetails = "";
+
+                    for (let i = 0; i < books.length; i++) {
+                        const title = books[i].getElementsByTagName("title")[0].childNodes[0].nodeValue;
+                        if (title === selectedBook) {
+                            const author = books[i].getElementsByTagName("author")[0].childNodes[0].nodeValue;
+                            const year = books[i].getElementsByTagName("year")[0].childNodes[0].nodeValue;
+                            const price = books[i].getElementsByTagName("price")[0].childNodes[0].nodeValue;
+
+                            bookDetails = `
+                                <h2>${title}</h2>
+                                <p><strong>Author:</strong> ${author}</p>
+                                <p><strong>Year:</strong> ${year}</p>
+                                <p><strong>Price:</strong> $${price}</p>
+                            `;
+                            break;
+                        }
+                    }
+
+                    document.getElementById("bookDetails").innerHTML = bookDetails;
+                }
+            };
+            xhr.send();
+        }
+    </script>
+</head>
+<body>
+    <h1>Select a Book</h1>
+    <select id="bookSelect" onchange="loadBookDetails()">
+        <option value="">--Select a Book--</option>
+        <option value="Book One">Book One</option>
+        <option value="Book Two">Book Two</option>
+        <option value="Book Three">Book Three</option>
+    </select>
+
+    <div id="bookDetails"></div>
+</body>
+</html>
